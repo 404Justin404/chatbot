@@ -7,7 +7,6 @@ import os
 app = FastAPI()
 
 # Store your OpenRouter API key as an environment variable for security
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "sk-or-your-key-here")
 
 class ChatInput(BaseModel):
     message: str
