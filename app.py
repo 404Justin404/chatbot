@@ -7,17 +7,17 @@ import torch
 
 app = FastAPI()
 
-# Mount static assets and templates
+# Static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Select device (GPU if available)
+# Use GPU if available
 device = 0 if torch.cuda.is_available() else -1
 
-# Load a smarter local model (Falcon-1B)
-print("Loading model... (this may take a few seconds)")
-chatbot = pipeline("text-generation", model="tiiuae/falcon-rw-1b", device=device)
-print("Model loaded successfully.")
+# Load GPT2-XL model (a.k.a GPT-X1)
+print("Loading GPT2-XL... please wait")
+chatbot = pipeline("text-generation", model="gpt2-xl", device=device)
+print("Model loaded.")
 
 @app.get("/", response_class=HTMLResponse)
 async def get_home(request: Request):
@@ -25,13 +25,12 @@ async def get_home(request: Request):
 
 @app.post("/chat")
 async def chat(message: str = Form(...), personality: str = Form("")):
-    # Combine personality and user message into a prompt
-    prompt = f"{personality.strip()}\nUser: {message.strip()}\nAI:"
+    # Construct the prompt with personality and message
+    prompt = f"{personality.strip()}\n\nUser: {message.strip()}\nBot:"
     
-    # Generate a response with controlled settings
     response = chatbot(
         prompt,
-        max_new_tokens=100,
+        max_new_tokens=150,
         do_sample=True,
         temperature=0.7,
         top_k=50,
@@ -39,7 +38,7 @@ async def chat(message: str = Form(...), personality: str = Form("")):
         pad_token_id=chatbot.tokenizer.eos_token_id
     )[0]["generated_text"]
 
-    # Extract and clean the bot's answer
-    answer = response.split("AI:")[-1].strip().split("User:")[0].strip()
+    # Extract only the bot's reply
+    answer = response.split("Bot:")[-1].strip().split("User:")[0].strip()
 
     return JSONResponse({"response": answer})
