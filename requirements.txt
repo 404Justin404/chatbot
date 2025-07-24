@@ -1,4 +1,7 @@
 fastapi
 uvicorn
-python-dotenv
-requests
+jinja2
+httpx
+transformers
+torch
+

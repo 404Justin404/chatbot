@@ -1,39 +1,25 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from fastapi.responses import JSONResponse
-import requests
-import os
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from transformers import pipeline, set_seed
 
 app = FastAPI()
 
-# Store your OpenRouter API key as an environment variable for security
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-class ChatInput(BaseModel):
-    message: str
+# Load a small local model
+chatbot = pipeline("text-generation", model="distilgpt2")
+set_seed(42)
+
+@app.get("/", response_class=HTMLResponse)
+async def get_home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/chat")
-async def chat(input: ChatInput):
-    try:
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "openchat/openchat-3.5",  # a solid, fast free model
-                "messages": [
-                    {"role": "system", "content": "You are a helpful chatbot."},
-                    {"role": "user", "content": input.message}
-                ]
-            },
-            timeout=30
-        )
-
-        response.raise_for_status()
-        data = response.json()
-        reply = data["choices"][0]["message"]["content"].strip()
-        return {"reply": reply}
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+async def chat(message: str = Form(...), personality: str = Form("")):
+    prompt = f"{personality.strip()}\nUser: {message.strip()}\nAI:"
+    response = chatbot(prompt, max_length=200, num_return_sequences=1)[0]["generated_text"]
+    answer = response.split("AI:")[-1].strip().split("User:")[0].strip()
+    return JSONResponse({"response": answer})
